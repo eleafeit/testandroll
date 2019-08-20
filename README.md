@@ -6,7 +6,7 @@
 #### Ron Berman, ronber@wharton.upenn.edu
 #### Updated 20 August 2019
 
-This folder contains the files necessary to replicate the results in Feit & Berman (2019) Test & Roll: Profit-Maximizing A/B Tests in R. The meta-analysis requires the rstan package. 
+This folder contains the files necessary to replicate the results in Feit & Berman (2019) Test & Roll: Profit-Maximizing A/B Tests in R. A copy of the paper and the presentation are also included for reference. 
 
 ### Test & Roll Functions
 `nn_functions.R` contains functions for computing and evaluating test & roll sample sizes for the normal-normal model and comparing them to null hypothesis tests and Thompson sampling. The functions in `nn_functions.R` will be included in the `testroll` R package with more complete documentation when it is released. 
