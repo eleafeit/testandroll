@@ -1,0 +1,248 @@
+---
+title: "How to Test & Roll"
+subtitle: "Profit-Maximizing A/B Tests"
+author: "Elea McDonnell Feit"
+date: "7/16/2020"
+output: 
+  beamer_presentation: default
+  ioslides_presentation: default
+  powerpoint_presentation: default
+widescreen: yes
+---
+
+```{r setup, include=FALSE}
+library(rstan)
+```
+
+# Logistics
+All workshop materials 
+
+# A/B Testing
+![](images/ab_testing.png){width=75%}
+
+## Typical A/B email test setup screen
+![](images/CampaignMonitorTestSetup.png){width=75%}
+
+## Hypothesis testing doesn't quite fit this problem
+
+1. Hypothesis tests focus on minimizing Type I error
+    - Doesn't matter when we are deciding which of two equal-cost treatments to deploy 
+
+2. Populations are limited and hypothesis tests don't recognize this
+    - Sample size formulas will suggest sample sizes larger than the population
+    
+3. When a hypothesis test is insignificant, it doesn't tell you what to do. 
+    - Choose randomly? That doesn't make sense!
+    
+4. Doesn't allow for unequal group sizes
+    - But we see these all the time in media holdout testing
+    
+    
+## A/B tests as a decision problem
+### Test
+Choose $n_1^*$ and $n_2^*$ customers to send the treatments.  
+Collect data on response.  
+
+### Roll
+Choose a treatment to deploy to the remaining $N - n_1^* - n_2^*$.  
+
+### Objective
+Maximize combined profit for test stage and the roll stage.   
+
+
+## Profit-maximizing sample size
+For the case where response is normally distributed with variance $s$ and a symmetric normal prior on the mean response ($m_1, m_2 \sim N(\mu, \sigma)$), the profit maximizing sample size is 
+
+$$n_1 = n_2 = \sqrt{\frac{N}{4}\left( \frac{s}{\sigma} \right)^2 + \left( \frac{3}{4} \left( \frac{s}{\sigma} \right)^2  \right)^2 } -  \frac{3}{4} \left(\frac{s}{\sigma} \right)^2$$
+If the priors are different for each group (eg a holdout test), the optimal sample sizes can be found numerically. This new sample size formula was recently derived by [Feit and Berman (2019) *Marketing Science*](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3274875).
+
+
+## Test & Roll in math 
+**Response**  
+$$y_1 \sim N(m_1, s)  \,\,\,\,\,\,\, y_2 \sim N(m_2, s)$$
+
+**Priors**  
+$$m_1 \sim N(\mu, \sigma) \,\,\,\,\,\,\, m_2 \sim N(\mu, \sigma)$$
+
+**Profit-maximizing sample size**
+$$n_1 = n_2 = \sqrt{\frac{N}{4}\left( \frac{s}{\sigma} \right)^2 + \left( \frac{3}{4} \left( \frac{s}{\sigma} \right)^2  \right)^2 } -  \frac{3}{4} \left(\frac{s}{\sigma} \right)^2$$
+
+
+## Interpreting the sample size formula
+
+Bigger population ($N$) $\rightarrow$ bigger test  
+
+More noise in the repsonse ($s$) $\rightarrow$ bigger test  
+
+More prior difference between treatments ($\sigma$) $\rightarrow$ smaller test 
+
+$$n_1 = n_2 = \sqrt{\frac{N}{4}\left( \frac{s}{\sigma} \right)^2 + \left( \frac{3}{4} \left( \frac{s}{\sigma} \right)^2  \right)^2 } -  \frac{3}{4} \left(\frac{s}{\sigma} \right)^2$$
+ 
+
+
+## Test & Roll procedure
+1. Come up with priors distributions for each treatment 
+    - Use past data, if you've got it
+2. Use the priors to compute the optimal sample size
+3. Run the test
+4. Deploy the treatment with the higher posterior to the remainder of the population
+    - Priors are symmetric $\rightarrow$ pick the treatment with the higher average
+
+
+## Come up with priors {.smaller}
+**Hierarchical Stan model for past experiments**
+```{stan, output.var="lr"}
+// Stan code for Lewis and Rao 2015 data
+// L&R only report the mean and standard deviation for the control group for each experiment
+data {
+  int<lower=1> nexpt; // number of experiments
+  real<lower=2> nobs[nexpt]; // sample size for control group
+  real ybar[nexpt]; // observed mean for control group
+  real<lower=0> s[nexpt]; // observed standard deviation for experiment (pooled)
+}
+parameters {
+  real m[nexpt]; // true mean for control group in experiment
+  real mu; // mean across experiments
+  real<lower=0> sigma; //standard deviation across experiments
+}
+model {
+  // priors
+  mu ~ normal(0, 10);
+  sigma ~ normal(0, 3);
+  // likelihood
+  for (i in 1:nexpt) {
+	  m[i] ~ normal(mu, sigma);
+	  ybar[i] ~ normal(m[i], s[i]/sqrt(nobs[i])); 
+  }
+}
+```
+
+
+## Fit hierarchical model to past experiments
+```{r, include=TRUE, cashe=TRUE}
+lr <- read.csv("display_LewisRao2015Retail.csv")
+# data taken from tables 1 and 2 of Lewis and Rao (2015)
+c <- c(1:3,5:6) # include only advertiser 1 and eliminate exp 4
+d1 <- list(nexpt=length(c), nobs=lr$n1[c], ybar=lr$m[c], s=lr$s[c])
+m1 <- stan(file="test_roll_model.stan", data=d1, seed=20030601, 
+           iter=10000)
+```
+
+
+## Fitted model
+```{r}
+summary(m1)$summary[,c(1,3,5,8)]
+```
+
+## Compute optimal sample size
+```{r, results="hide"}
+source("nn_functions.R")
+```
+```{r}
+(n <- test_size_nn(N=1000000, s=mean(d1$s), mu=10.36044, sigma=4.39646))
+```
+
+## Evaluate the test
+```{R}
+(eval <- test_eval_nn(n=n, N=1000000, s=mean(d1$s), mu=10.36044, sigma=4.3964))
+```
+
+
+## Compare to sample size for hypothesis test 
+Null hypothesis test size to detect difference between:  
+- display ads that have no effect 
+- display ads that are exactly worth the costs 
+(ROI = 0 versus ROI = -100).
+```{r}
+margin <- 0.5
+d <- mean(lr$cost[c])/margin
+(n_nht <- test_size_nht(s=mean(d1$s), d=d))  
+```
+
+
+## Sample size for hypothesis test with finite population correction
+```{r}
+(n_fpc <- test_size_nht(s=mean(d1$s), d=d, N=1000000))  
+(eval_fpc <- test_eval_nn(c(n_fpc, n_fpc), N=1000000, 
+                          s=mean(d1$s), mu=10.36044, sigma=4.39646))
+```
+
+
+## Comparison of display ad tests
+![](images/tr_display.png){width=100%}
+
+
+# Multi-armed bandits
+
+## Multi-armed bandits
+Multi-armed bandits are a dynamic profit-maximizing approach that is more flexible than a test & roll experiment. They are often referred to as the "machine learning for the A/B testing world." 
+
+![](images/bandits.jpeg){width=50%}
+
+Source: personal photo from Ceasar's Palace, Las Vegas
+
+## Multi-armed bandit process/problem
+
+1. Define treatment probabilities $p_k$ 
+2. Asssign one or a few units to treatments with probability for each treatment $k$
+3. Collect data 
+4. Adjust $p_k$'s based on the data 
+5. Repeat
+
+
+## Thompson sampling
+A popular approach multi-armed bandit problems was proposed by Thompson in 1933. 
+
+1. Start with prior distributions on the performance of each treatment 
+2. Assign units to treatments based on the probability that the treatment is best
+3. Collect data
+4. Update priors
+5. Repeat
+
+There are other methods that work better in specific contexts, but Thompson sampling is very robust.
+
+## Thompson sampling for 3 treatments
+![](images/thom_samp.png){width=75%}
+
+Source: eigenfoo.xyz
+
+
+## How do Thompson sampling and Test & Roll compare? 
+
+Both methods are profit-maximizing. We can compare them based on how much profit they generate. 
+
+Thompson sampling is less constrained, so will always produce more profit on average. 
+
+Statisticans are a pessimistic lot, so we prefer to compute **regret** for an algorithm, which is the difference between profit with perfect information and profit with the algorithm. 
+
+
+## Comparison of regret for Thompson sampling and Test & Roll
+![](images/ts_tr_N_K.png){width=100%}
+Source: [Feit and Berman 2019](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3274875)
+
+## Comparison of Thompson sampling and Test & Roll
+![](images/ts_tr_s_sigma.png){width=100%}
+
+
+## Comparison of Thompson sampling and Test & Roll
+![](images/ts_tr_mu.png){width=100%}
+
+
+## Why do Test & Roll? 
+
+- Works when response takes a long time to measure
+    - Long purchase cycles
+- Works when iterative allocation would be time-consuming
+    - Email, catalog and direct mail
+- Reduces complexity for website tests
+    - Don't need bandit interacting with site  
+    
+Test & Roll profit-maximizing sample size can be used as a conservative estimate of how long to run a bandit algorithm.
+
+
+## Things you just learned
+
+- Test & Roll experiments
+    - Profit-maximizing sample size
+- Multi-armed bandits
+    - Thompson sampling
