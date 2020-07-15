@@ -5,6 +5,7 @@
 #### Elea McDonnell Feit, eleafeit@gmail.com
 #### Ron Berman, ronber@wharton.upenn.edu
 #### Updated 20 August 2019
+#### Updated 15 July 2020
 
 This folder contains the files necessary to replicate the results in Feit & Berman (2019) Test & Roll: Profit-Maximizing A/B Tests in R. A copy of the paper and a presentation are also included for reference. An online calculator for the symmetric normal-normal model is available at [testandroll.com](http://testandroll.com).
 
@@ -22,4 +23,6 @@ This folder contains the files necessary to replicate the results in Feit & Berm
 ### Catalog Example
 `catalog.R` is similar to `website.R` and provides code for generating synthetic data similar to the catalog data, fitting the meta-analysis model (based on `catalog_model.stan`), and then computing optimal test & roll sample sizes. This example illustrates asymetric test design. 
 
+### How To Workshop
+The `HowTo` folder contains R Markdown code for a workshop on "How to Test & Roll". You can think of this as the draft of a vignette for a future R package. 
 

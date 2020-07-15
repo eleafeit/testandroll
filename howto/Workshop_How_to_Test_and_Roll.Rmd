@@ -13,36 +13,59 @@ widescreen: yes
 ```{r setup, include=FALSE}
 library(rstan)
 library(dplyr)
+options(mc.cores = parallel::detectCores())
+setwd("~/Documents/GitHub/testandroll")
+source("nn_functions.R")
 ```
+
+## Thanks to Drexel & Wharton
+
+[Drexel Business Analytics Meetup](https://www.meetup.com/analyticslebow/)  
+[Drexel MS Business Analtyics](https://www.lebow.drexel.edu/land/masters/business-analytics)  
+[Drexel MS Marketing](https://www.lebow.drexel.edu/land/masters/marketing)  
+
+[Wharton Online Certificate in Digital Marketing](https://online.wharton.upenn.edu/programs/?vm_vt=1#digital-marketing)  
+[Wharton Exec Ed Course in Customer Analtyics](https://executiveeducation.wharton.upenn.edu/for-individuals/all-programs/customer-analytics-for-growth-using-machine-learning-ai-and-big-data/)  
+[Analytics at Wharton](https://www.wharton.upenn.edu/analytics/)  
 
 ## A/B Testing  
 ![](images/ab_testing.png){width=75%}  
 
 ## Holdout Testing  
-![](images/holdout_testing.png){width=75%}  
-
-## Workshop materials  
-The R Markdown file that created these slides is at XXX.  
-
-Advanced R users are welcome to open the file in R Studio and run the code as we go along.   
-- Requires `rstan` and `dplyr` packages  
-- Requires a file with some additional functions I wrote  
-
-Those unfamiliar with R markdown may prefer to simply follow the slides.  
+![](images/holdout_testing.png){width=75%}   
 
 ## Workshop Goals
-You may know how to plan and analyze an A/B test using hypothesis testing. (If you don't, check out the R-Ladies Philly recording of my previous workshop on A/B testing.)
+In this session, I'd like to introduce you to an alternative way of planning and analyzing an A/B test, which is based on *Bayesian decision theory*. We think this approach has a lot of advantages, so Ron and I gave it a name: **Test & Roll**.  
 
-In this session, I'd like to introduce you to an alternative way of planning and analyzing an A/B test, which is based on *Bayesian decision theory*. I think this approach has a lot of advantages, so I gave it a name: **Test & Roll**. 
+We are marketing professors, after all!  
 
-So, let's start by learning how to analyze an A/B test using *Bayesian inference.* 
 
-# Bayesian Analysis for A/B Tests
+## Workshop materials  
+[Slides]()  
+[R Markdown file that created slides]()
+
+Those familiar with R Markdown can open the file in R Studio and run the code as we go along.   
+- Requires `rstan` and `dplyr` packages  
+- Requires [nn_functions.R]() with some additional functions I wrote  
+
+Those unfamiliar with R markdown may prefer to just follow the slides.  
+
+## What I expect participants already know
+I just told you about A/B tests, *but ask questions!*
+
+I will assume you know what a probability distribution like the normal distribution is, *but ask questions!*
+
+I expect you are comfortable reading R. I will use mathematical calculations, for loops, and plotting, *but ask questions!
+
+You do not need to know how plan and analyze an A/B test using hypothesis testing, but see [previous R Ladies Philly workshop on A/B testing](https://www.youtube.com/watch?v=QXpYtM-Zlxg&t=4s).
+
+
+# How to analyze an A/B test using Bayesian inference
 
 ## Bayesian Analysis for A/B Tests
 The data from an A/B test comparing the time users spend on your website for two versions of the homepage is in the data frame `test_data`. A summary of the data looks like this: 
 ```{r, echo=FALSE}
-# Simulate data
+# Generate synthetic data
 set.seed(19104)
 group <- c(rep("A", 500), rep("B", 500)) 
 time_on_site <- c(rnorm(500, mean=5.2, sd=2), rnorm(500, mean=5.4, sd=2.2))
@@ -53,7 +76,7 @@ rm(group, time_on_site)
 test_data %>% 
   group_by(group) %>% summarize(mean=mean(time_on_site), sd=sd(time_on_site), n=n())
 ```
-It looks like the B version keeps users on the site a bit longer, but how sure are we that B produces longer visits on average?  
+It looks like the B version keeps users on the site a bit longer, but how sure are we that B produces longer visits on average? We've only seen 500 visitors in each group.
 
 ## Prior beliefs
 I would like to know what the mean time-on-site is for the A group and the B group. 
@@ -64,16 +87,18 @@ Formally, I can describe my prior beliefs with a *prior distribution*:
 $$\textrm{mean time-on-site for group} \sim N(0, 100^2)$$  
 
 ## Prior beliefs  
-We can also draw a picture of that prior.
+I find it easier to draw a picture of my prior.
 ```{r, echo=FALSE}
+# Plot the prior
 plot(x=-300:300, y=dnorm(-300:300, mean=0, sd=100), 
      type="l", col="gray", xlab="mean time-on-site (m)", ylab="prior density")
 ```
 
 
 ## Posterior beliefs
-Bayes rule tells you how you should update your beliefs after you see some data. This is easiest to see with a picture.
+Bayes rule tells you how you should update your beliefs after you see some data. This is also easier to see with a picture.
 ```{r, echo=FALSE}
+# Plot the posterior
 n_A <- sum(test_data$group=="A")
 n_B <- sum(test_data$group=="B")
 s <- sd(test_data$time_on_site)
@@ -89,7 +114,7 @@ legend("topright", col=c("blue", "red", "gray"), legend=c("posterior for A", "po
 ```
 
 ## Model details (mathematically)
- If we assume that the time-on-site is also distributed normally: 
+ If we assume that the time-on-site for each customer is distributed normally: 
 $$\textrm{time-on-site} \sim \mathcal{N}(\textrm{mean time-on-site for group}, s^2)$$
 Then Bayes rule tells us that the posterior distribution for mean time-on-site for each group should be: 
 $$\textrm{mean time-on-site for group given data} \sim \mathcal{N}\left(\overline{y}, \left(\frac{1}{100^2} + \frac{n}{s^2}\right)^{-1}\right)$$  
@@ -112,17 +137,22 @@ post_sd_B <- (1/100^2 + n_B/s^2)^-(1/2)
 ```
 
 ## Credible intervals for groups
-If you like intervals, we can compute a 95% credible intervals for each group, by cutting off the left and right 2.5% of the distribution.  In this case, our posterior is normal, so we use the `qnorm()` function, which computes quantiles of the normal distribution.
+If you like intervals, we can compute a 95% credible intervals for each group, by cutting off the left and right 2.5% of the posterior distribution.  In this case, our posterior is normal, so we use the `qnorm()` function, which computes quantiles of the normal distribution.
 
+There is a 95% probability that the average time-on-site for treatment A is:
 ```{r}
 qnorm(c(0.025, 0.975), mean=post_mean_A, sd=post_sd_A) # CI for A
+```
+There is a 95% probability that the average time-on-site for treatment B is:
+```{r}
 qnorm(c(0.025, 0.975), mean=post_mean_B, sd=post_sd_B) # CI for B
 ```
 
 ## Posterior for the difference between A and B
-We can also compute the posterior distribution for the difference between the mean for the B group and the mean for the A group. 
+We can also compute the posterior distribution for the difference between the mean time-on-site for the B group and the mean time-on-site for the A group. 
 ```{r, echo=FALSE}
-post_mean_diff <- post_mean_B - post_mean_A
+# Plot the posterior for the DIFFERENCE
+post_mean_diff <- post_mean_B - post_mean_A 
 post_sd_diff <- sqrt(post_sd_B^2 + post_sd_A^2)
 plot(x=(-50:60)/100, y=dnorm((-50:60)/100, mean=post_mean_diff, sd=post_sd_diff), 
      type="l", col="black", 
@@ -146,17 +176,18 @@ Once we have the distribution for the difference in the mean time-on-site, we ca
 It is up to the decision maker to decide whether they would like to use version B knowing that there is a 63% change that B is better than A. This depends on how costly it is to deploy B. 
 
 ## More on prior beliefs
-Many people get hung up onpriors. **Don't!**
+Many people get hung up on priors. **Don't!**
 
-As you get more data, the posterior becomes more and more influenced by the data. In most practical situations you have enough data that, the priors do not affect the analysis much.
+As you get more data, the posterior becomes more and more influenced by the data. In most practical situations you have enough data that the priors do not affect the analysis much.
 
-If you have prior information, priors are a principalled way to bring it in. 
+If you have prior information, priors are a principled way to bring it in. 
 
 Priors are also useful when planning an A/B test (more later).
 
 ## More on prior beliefs
-When we don't want our priors to influence the outcome, we use "flat" priors. Our prior puts nearly equal weight on 4.5 minutes versus 6 minutes, so it is pretty flat.   
+When we don't want our priors to influence the outcome, we use "flat" priors. The prior we jused puts nearly equal weight on 4.5 minutes versus 6 minutes, so it is pretty flat.   
 ```{r, echo=FALSE}
+# Plot the posterior (again)
 plot(x=(450:600)/100, y=dnorm((450:600)/100, mean=post_mean_A, sd=post_sd_A), 
      type="l", col="blue", xlab="mean time-on-site (m)", ylab="posterior density")
 lines(x=(450:600)/100, y=dnorm((450:600)/100, mean=post_mean_B, sd=post_sd_B), col="red")
@@ -167,22 +198,21 @@ legend("topright", col=c("blue", "red", "gray"), legend=c("A", "B", "prior"), bt
 ## More on prior beliefs
 In this analysis I used the same prior for both A and B because I know nothing about A and B.   
 
-*Important*: using the same prior for A and B is *not the same* as assuming A and B have the same mean time-on-site. 
+*Important*: using the same prior for A and B is *not the same* as assuming A and B have the same mean time-on-site. Priors reflect our uncertainty about A and B. Becuase we are uncertain, A might be better than B or B better than A.
 
-You can always use priors that reflect your (justifiable) prior beliefs. For instance, if A is a discount and B is no discount and our outcome is how much you purchase, then I'm pretty sure A will be as good as or better than B. 
+You can use priors that reflect your (justifiable) prior beliefs. For instance, if A is a discount and B is no discount and our outcome is how much you purchase, then I'm pretty sure A will be as good as or better than B. 
 
-
-## Summary of Bayesian Analysis for A/B tests
+## How to analyze an A/B test using Bayesian analysis
 1. Pick treatments and an outcome to measure
-2. Specify you beliefs about the outcome (prior distribution)
-3. Randomly assign A and B to users and record outcome
+2. Randomly assign A and B to some users and record outcomes
+3. Quantify your beliefs about the outcome with a prior distribution
 4. Update your beliefs according to Bayes rule (posterior distribution)
 5. Plot your updated belief distribution; compute intervals and probabilities
 6. Make a decision or **go to 3**
 
-## Questions? 
+## [Questions?](https://docs.google.com/document/d/1phklSbRQPeINqzx0eerxLyY0ILn_CFxQ1OgBDZtC6GE/edit)
 
-## Planning an A/B test
+# How to **Test & Roll**
 
 ## Typical A/B email test setup screen
 ![](images/CampaignMonitorTestSetup.png){width=75%}
@@ -190,48 +220,198 @@ You can always use priors that reflect your (justifiable) prior beliefs. For ins
 ## A/B test planning as a decision problem
 ### Test
 Choose $n_1^*$ and $n_2^*$ customers to send the treatments.  
-Collect data on response.  
+Collect data on profit for both treatments.  
 
 ### Roll
-Choose a treatment to deploy to the remaining $N - n_1^* - n_2^*$.  
+Choose a treatment to deploy to the remaining $N - n_1^* - n_2^*$ customers.
 
 ### Objective
 Maximize combined profit for test stage and the roll stage.   
 
 ## Profit-maximizing sample size
-If you have a test where the response is  
-$y \sim \mathcal{N}(m_A, s)$ for group A and $y \sim \mathcal{N}(m_B, s)$ for group B  
+If you have a test where the **profit** earned for each customer is:   
+$y \sim \mathcal{N}(m_1, s)$ for group 1   
+$y \sim \mathcal{N}(m_2, s)$ for group 2   
 
 and your priors are  
-($m_1, m_2 \sim N(\mu, \sigma)$)  
+($m_1, m_1 \sim N(\mu, \sigma)$)  
 
 the profit maximizing sample size is:  
 $$n_1 = n_2 = \sqrt{\frac{N}{4}\left( \frac{s}{\sigma} \right)^2 + \left( \frac{3}{4} \left( \frac{s}{\sigma} \right)^2  \right)^2 } -  \frac{3}{4} \left(\frac{s}{\sigma} \right)^2$$
 This new sample size formula is derived in [Feit and Berman (2019) *Marketing Science*](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3274875).
 
-## I made an R function to compute the sample size 
-
+## Compute the sample size in R
 ```{r}
-source("nn_functions.R")
-mu = 0.68  # average conversion rate
-s = mu*(1-mu) # binomial approximation
-sigma = 0.03
-N=100000
-(n <- test_size_nn(N=N, s=s, mu=mu, sigma=0.03))
+source("~/Documents/GitHub/testandroll/nn_functions.R") # some functions I wrote
+N <- 100000 # available population
+mu <- 0.68  # average conversion rate across previous treatments
+sigma <- 0.03 # range of expected conversation rates across previous treatments
+s <- mu*(1-mu) # binomial approximation
+test_size_nn(N=N, s=s, mu=mu, sigma=sigma) # compute the optimal test size
 ```
 
-## How does this work?
-Bigger population ($N$) $\rightarrow$ bigger test  
+## Why is this the profit-maximizing test size? 
+`test_eval_nn()` computes the profit of a Test & Roll.
+```{r}
+# Optimal test size
+n_star <- test_size_nn(N=N, s=s, mu=mu, sigma=sigma)
+test_eval_nn(n=n_star, N=N, s=s, mu=mu, sigma=sigma)
+```
 
-## How does this work?
-More noise in the repsonse ($s$) $\rightarrow$ bigger test  
+## Why is this the profit-maximizing test size? 
+```{r}
+# Bigger test
+test_eval_nn(n=c(10000, 10000), N=N, s=s, mu=mu, sigma=sigma)
+```
+```{r}
+# Smaller test
+test_eval_nn(n=c(100, 100), N=N, s=s, mu=mu, sigma=sigma)
+```
 
-## How does this work?
-More prior difference between treatments ($\sigma$) $\rightarrow$ smaller test 
-
-
-
+## Why is this the profit-maximizing test size? 
 ```{r, echo=FALSE}
+# Plot expected profit as a function of test size
+# NHT for comparison
+d <- 0.68*0.02 # 2% lift 
+n_nht <- test_size_nht(s=sqrt(mu*(1-mu)), d=d) # to match the profit maximizing
+eval_nht <- test_eval_nn(n=rep(n_nht, 2), N=N, s=sqrt(mu*(1-mu)), mu=mu, sigma=sigma)
+# Plot
+n <- c(1:19, 2:19*10, 2:19*100, 2:19*1000, 2:5*10000)
+out <- NULL
+for (i in 1:length(n)) {
+  out <- rbind(out, test_eval_nn(n=c(n[i], n[i]), N=N, s=sqrt(mu*(1-mu)), mu=mu, sigma=sigma))
+}
+plot(out$n1, out$profit, type="l", 
+     ylim=c(out$profit_rand[1], out$profit_perfect[1]),
+     xlab=expression("Test Size (n"[1]*"=n"[2]*")"), ylab="Expected Profit")
+abline(v=n_star)
+text(n_star, 0.696*N, "n*=2,284", pos=4)
+abline(v=n_nht, col="gray", lty=3)
+text(n_nht, 0.683*N, expression(n[HT]), col="gray", pos=4)  # hard code
+```
+
+## How often do you deploy the wrong treatment? 
+```{r, echo=FALSE}
+# Plot the error rate as a function of test size
+plot(out$n1, out$error_rate, type="l", ylim=c(0, 0.5),
+     xlab=expression("Test Size (n"[1]*"=n"[2]*")"), ylab="Error Rate")
+abline(v=n_star)
+text(n_star, 0.13, "n*=2,284", pos=4)
+abline(v=n_nht, col="gray", lty=3)
+text(n_nht, 0.3, expression(n[HT]), col="gray", pos=4)
+```
+
+## Profit-maximizing sample size
+The `test_size_nn()` function is making the optimal trade-off between: 
+
+- the opportunity cost of the test (You are send the wrong treatment to half your customers!)  
+
+and 
+
+- the risk of deploying the wrong treatment 
+
+# How to choose `N`, `mu`, `sigma` and `s`
+
+## What is `N`?
+`N` is the total number of customers you have available, i.e. the size of your email mailing list or the the number of visits that might visit a webpage in the next month.
+
+Let's vary `N` and look at how the profit-maximizing test size changes:
+```{r}
+Ns <- (1:1000)*1000
+test_sizes <- rep(NA, length(Ns))
+for (i in 1:length(Ns)) 
+  test_sizes[i] <- test_size_nn(N=Ns[i], s=s, mu=mu, sigma=sigma)[1]
+```
+```{r, eval=FALSE}
+plot(x=Ns, y=test_sizes, type="l", col="orange",
+     xlab="available population (N)", ylab="profit-maximizing sample size")
+```
+
+
+## What is `N`? 
+Bigger `N` $\rightarrow$ bigger test 
+```{r, echo=FALSE}
+plot(x=Ns, y=test_sizes, type="l", col="orange",
+     xlab="available population (N)", ylab="profit-maximizing sample size")
+```
+
+## What is `mu`? 
+`mu` is the average profit you expect across treatments you might test.
+
+Let's vary `mu`: 
+```{r}
+mus <- (1:1000)/100
+test_sizes <- rep(NA, length(mus))
+for (i in 1:length(mus)) 
+  test_sizes[i] <- test_size_nn(N=N, s=s, mu=mus[i], sigma=sigma)[1]
+```
+```{r, eval=FALSE}
+plot(x=mus, y=test_sizes, type="l", col="orange",
+     xlab="expected average profit per customer (mu)", ylab="profit-maximizing sample size")
+```
+
+## What is `mu`?
+``mu` doesn't effect the test size (when `mu` is the same for both A and B)
+```{r, echo=FALSE}
+plot(x=mus, y=test_sizes, type="l", col="orange",
+     xlab="expected average profit per customer (mu)", ylab="profit-maximizing sample size")
+```
+
+## What is `s`?
+`s` is how variable the profit is from one customer to another.
+
+Let's vary `s`: 
+```{r}
+ss <- (1:1000)/1000
+test_sizes <- rep(NA, length(ss))
+for (i in 1:length(ss)) 
+  test_sizes[i] <- test_size_nn(N=N, s=ss[i], mu=mu, sigma=sigma)[1]
+```
+```{r, eval=FALSE}
+plot(x=ss, y=test_sizes, type="l", col="orange",
+     xlab="noise in profit per customer (s)", ylab="profit-maximizing sample size")
+```
+
+## What is `s`?
+Bigger `s` $\rightarrow$ harder to see what is going on $\rightarrow$ bigger test 
+```{r, echo=FALSE}
+plot(x=ss, y=test_sizes, type="l", col="orange",
+     xlab="noise in profit per customer (s)", ylab="profit-maximizing sample size")
+```    
+
+Hypothesis testing requires much bigger sample sizes (proportional to `s^2` instead of `s`). 
+
+## What is `sigma`? 
+`sigma` defines the difference we expect between average profit for the two treatments.
+```{r}
+plot_prior_effect_nn(mu, sigma, abs=TRUE)
+```
+
+## What is `sigma`? 
+Let's vary `sigma`: 
+```{r}
+sigmas <- (1:1000)/10000
+test_sizes <- rep(NA, length(sigmas))
+for (i in 1:length(sigmas)) 
+  test_sizes[i] <- test_size_nn(N=N, s=s, mu=mu, sigma=sigmas[i])[1]
+```
+```{r, eval=FALSE}
+plot(x=sigmas, y=test_sizes, type="l", col="orange",
+     xlab="prior sd of treatment mean profit (sigma)", ylab="profit-maximizing sample size")
+```
+
+## What is `sigma`?
+Bigger `sigma` $\rightarrow$ bigger difference between A and B  $\rightarrow$ smaller test 
+```{r, echo=FALSE}
+plot(x=sigmas, y=test_sizes, type="l", col="orange",
+     xlab="prior sd of treatment mean profit (sigma)", ylab="profit-maximizing sample size")
+```
+
+# How to come up with `s` and `sigma` for your own test
+
+## Data on previous treatments
+```{r, echo=FALSE}
+# Generate synthetic data on previous A/B tests
 generate_syn_expt <- function(nexpt, nobs, mu, sigma, omega) {
   nobs <- matrix(nobs, nrow=nexpt, ncol=2) # equal test sizes
   y <- matrix(NA, nrow=nexpt, ncol=2)
@@ -245,214 +425,230 @@ generate_syn_expt <- function(nexpt, nobs, mu, sigma, omega) {
     y[e, 1] <- mean(rnorm(nobs[e,1], mean=m[1], sd=sqrt(m[1]*(1-m[1]))))
     y[e, 2] <- mean(rnorm(nobs[e,2], mean=m[2], sd=sqrt(m[2]*(1-m[2]))))
   }
+  colnames(y) <- c("A_conv_rate", "B_conv_rate")
   list(nexpt=nexpt, y=y, nobs=nobs)
 }
 set.seed(19980103)
 expts <- generate_syn_expt(nexpt=100, nobs=100000, 
                            mu=0.676, sigma=0.030, omega=0.199) # pop estimates from paper
 ```
+Suppose you have data on some previous A/B tests that represent the range of results you might expect from the treatments in the test you are planning. 
+```{r}
+head(expts$y)
+```
+This data is synthetic data that is similar to data we have from a large A/B testing platform. In the data we have `conv_rate` is the number of users who click anywhere on a website. 
 
-## Come up with priors {.smaller}
-**Hierarchical Stan model for past experiments**
-```{stan, output.var="lr"}
-// Stan code for Lewis and Rao 2015 data
-// L&R only report the mean and standard deviation for the control group for each experiment
+## Meta-analyze past experiments
+Assume that this data represents the range of performance that we might see in the test we are planning. 
+
+We can fit a model to this data to estiamte `mu` and `sigma` for these types of tests.
+
+We'll use [Stan](mc-stan.org), which is a flexible, open-source tool for Bayesian modeling. You can access Stan by installing the `rstan` package.
+
+## Hierarchical Stan model for past experiments {.smaller}
+```{stan, output.var="stan_model"}
 data {
   int<lower=1> nexpt; // number of experiments
-  real<lower=2> nobs[nexpt]; // sample size for control group
-  real ybar[nexpt]; // observed mean for control group
-  real<lower=0> s[nexpt]; // observed standard deviation for experiment (pooled)
+  real<lower=0,upper=1> y[nexpt,2]; // observed mean response for each arm
+  int nobs[nexpt,2]; // sample size for each arm (1 and 2)
 }
 parameters {
-  real m[nexpt]; // true mean for control group in experiment
-  real mu; // mean across experiments
-  real<lower=0> sigma; //standard deviation across experiments
+  real<lower=0, upper=1> m[nexpt,2]; 
+  real<lower=0, upper=1> t[nexpt];
+  real<lower=0, upper=1> mu;
+  real<lower=0> sigma; 
+  real<lower=0> omega; 
 }
 model {
   // priors
-  mu ~ normal(0, 10);
-  sigma ~ normal(0, 3);
+  mu ~ normal(0.5, 0.1);
+  omega ~ normal(0, 0.1);   
+  sigma ~ normal(0, 0.1); 
   // likelihood
   for (i in 1:nexpt) {
-	  m[i] ~ normal(mu, sigma);
-	  ybar[i] ~ normal(m[i], s[i]/sqrt(nobs[i])); 
+    t[i] ~ normal(mu, omega);
+  	m[i,1] ~ normal(t[i], sigma);
+    m[i,2] ~ normal(t[i], sigma);
+    y[i,1] ~ normal(m[i,1], sqrt(m[i,1]*(1-m[i,1])/nobs[i,1])); 
+	  y[i,2] ~ normal(m[i,2], sqrt(m[i,2]*(1-m[i,2])/nobs[i,2]));
   }
 }
 ```
 
 
-## Fit hierarchical model to past experiments
+## Fit Stan model to past experiments
 ```{r, include=TRUE, cashe=TRUE}
-lr <- read.csv("display_LewisRao2015Retail.csv")
-# data taken from tables 1 and 2 of Lewis and Rao (2015)
-c <- c(1:3,5:6) # include only advertiser 1 and eliminate exp 4
-d1 <- list(nexpt=length(c), nobs=lr$n1[c], ybar=lr$m[c], s=lr$s[c])
-m1 <- stan(file="test_roll_model.stan", data=d1, seed=20030601, 
-           iter=10000)
+m1 <- sampling(stan_model, data=expts, seed=20030601, iter=1000)
 ```
 
-
-## Fitted model
+## Fitted parameters
+We're interested in `mu`, which is the average profit per customer across all the tests and `sigma`, which is the variation between the A and B groups *within* a test. 
 ```{r}
-summary(m1)$summary[,c(1,3,5,8)]
+summary(m1, pars=c("sigma", "mu"))$summary[,c(1,3,5,8)]
 ```
 
-
-
-# Design Test & Roll -----
-# to replicate the exact results in the paper, use these rounded values
-mu = 0.68
-sigma = 0.03
-N = 100000
-
-# Prior on effect size
-pdf("website.pdf")
-sqrt(2)*sigma/sqrt(pi) # mean effect size
-plot_prior_effect_nn(mu, sigma, abs=TRUE)
-
-# Profit-maximizing
-(n_star <- test_size_nn(N, s=sqrt(mu*(1-mu)), sigma=sigma))
-(eval <- test_eval_nn(n=n_star, N=N, s=sqrt(mu*(1-mu)), mu=mu, sigma=sigma))
-
-# Compare to NHT 
-d <- 0.68*0.02 # 2% lift 
-(pnorm(d, mean=0, sd = sqrt(2)*sigma)-0.5)*2 # percentile of TE distribution
-(n_nht <- test_size_nht(s=sqrt(mu*(1-mu)), d=d)) # to match the profit maximizing
-(eval_nht <- test_eval_nn(n=rep(n_nht, 2), N=N, s=sqrt(mu*(1-mu)), mu=mu, sigma=sigma))
-eval$profit - eval_nht$profit
-
-# Compare to NHT with Finite Population Correction
-(n_fpc <- test_size_nht(s=sqrt(mu*(1-mu)), d=d, N=100000)) 
-(eval_fpc <- test_eval_nn(n=rep(n_fpc, 2), N=N, s=sqrt(mu*(1-mu)), mu=mu, sigma=sigma))
-eval$profit - eval_fpc$profit
-
-# Profit and error rate as a function of n -----
-# Profit
-n <- c(1:19, 2:19*10, 2:19*100, 2:19*1000, 2:5*10000)
-out <- NULL
-for (i in 1:length(n)) {
-  out <- rbind(out, test_eval_nn(n=c(n[i], n[i]), N=N, s=sqrt(mu*(1-mu)), mu=mu, sigma=sigma))
-}
-plot(out$n1, out$profit, type="l", 
-     ylim=c(out$profit_rand[1], out$profit_perfect[1]),
-     xlab=expression("Test Size (n"[1]*"=n"[2]*")"), ylab="Expected Conversions")
-abline(v=n_star)
-text(n_star, 0.696*N, "n*=2,284", pos=4)
-abline(v=n_fpc, col="red", lty=2)
-text(n_fpc, 0.683*N, expression(n[FPC]), col="red", pos=2)  # hard code
-abline(v=n_nht, col="red", lty=3)
-text(n_nht, 0.683*N, expression(n[HT]), col="red", pos=4)  # hard code
-
-# Error rate
-plot(out$n1, out$error_rate, type="l", ylim=c(0, 0.5),
-     xlab=expression("Test Size (n"[1]*"=n"[2]*")"), ylab="Error Rate")
-abline(v=n_star)
-text(n_star, 0.13, "n*=2,284", pos=4)
-abline(v=n_fpc, col="red", lty=2)
-text(n_fpc, 0.3, expression(n[FPC]), col="red", pos=2)
-abline(v=n_nht, col="red", lty=3)
-text(n_nht, 0.3, expression(n[HT]), col="red", pos=4)
-
-# Sample size sensitivities -----
-cex <- 1
-ylim <- c(0,25000)
-
-# Optimal sample sizes for different N 
-N <- c(100, (1:10000)*1000)
-out <- NULL; fpc <- NULL
-for (i in 1:length(N)) {
-  out <- c(out, test_size_nn(N[i], s=sqrt(mu*(1-mu)), sigma=sigma)[1])
-  fpc <-  c(fpc, test_size_nht(s=sqrt(mu*(1-mu)), d=d, N=N[i])) 
-}
-plot(N/1000000, out, type="l", ylim=ylim,
-     xlab="Population Size (N, millions)", ylab="Test Size", cex.lab=cex)
-text(N[2000]/1000000, out[2000], "n*", pos=1, cex=cex)
-lines(N/1000000, fpc, col="red", lty=2)
-text(N[200]/1000000, fpc[200], expression(n[FPC]), col="red", pos=4, cex=cex)
-abline(h=n_nht, col="red", lty=3)
-text(N[2000]/1000000, n_nht, expression(n[HT]), col="red", pos=3, cex=cex)
-
-# Optimal sample sizes for different sigma
-N=100000
-sigma <- seq(0.001, 0.19, 0.001)
-d <- qnorm(0.5+0.125, mean=0, sd=sqrt(2)*sigma) #25th percentile of prior on te
-out <- NULL; nht <- NULL; fpc <- NULL
-for (i in 1:length(sigma)) {
-  out <- c(out, test_size_nn(N, s=sqrt(mu*(1-mu)), sigma=sigma[i])[1])
-  nht <- c(nht, test_size_nht(s=sqrt(mu*(1-mu)), d=d[i])) 
-  fpc <-  c(fpc, test_size_nht(s=sqrt(mu*(1-mu)), d=d[i], N=N)) 
-}
-plot(sigma, out, type="l", ylim=ylim,
-     xlab=expression(paste("StDev of Prior (", sigma, ")", sep="")), 
-     ylab="Test Size", cex.lab=1.3, cex.lab=cex)
-text(sigma[15], out[15], "n*", pos=1, cex=cex)
-lines(sigma, fpc, col="red", lty=2)
-text(sigma[30], fpc[30], expression(n[FPC]), col="red", pos=2, cex=cex)
-lines(sigma, nht, col="red", lty=3)
-text(sigma[30], nht[30], expression(n[HT]), col="red", pos=4, cex=cex)
-
-# Optimal sample sizes for different s
-sigma <- 0.03
-d <- 0.68*0.02
-s <- seq(0.001, 0.7, 0.002)
-out <- NULL; nht <- NULL; fpc <- NULL
-for (i in 1:length(s)) {
-  out <- rbind(out, test_size_nn(N, s=s[i], sigma=sigma))
-  nht <- rbind(nht, test_size_nht(s=s[i], d=d))
-  fpc <- rbind(fpc, test_size_nht(s=s[i], d=d, N=100000))
-}
-plot(s, out[,1], type="l", ylim=ylim,
-     xlab="StDev of Response (s)", ylab="Test Size", cex.lab=cex)
-text(s[250], out[250,1], "n*", pos=3, cex=cex)
-lines(s, fpc, type="l", col="red", lty=2)
-text(s[300], fpc[300]-700, expression(n[FPC]), col="red", pos=1, cex=cex)
-lines(s, nht, type="l", col="red", lty=3)
-text(s[250], nht[250], expression(n[HT]), col="red", pos=2, cex=cex)
-dev.off()
-
-
-
-## Evaluate the test
-```{R}
-(eval <- test_eval_nn(n=n, N=1000000, s=mean(d1$s), mu=10.36044, sigma=4.3964))
-```
-
-
-## Compare to sample size for hypothesis test 
-Null hypothesis test size to detect difference between:  
-- display ads that have no effect 
-- display ads that are exactly worth the costs 
-(ROI = 0 versus ROI = -100).
+## Compute optimal sample size
 ```{r}
-margin <- 0.5
-d <- mean(lr$cost[c])/margin
-(n_nht <- test_size_nht(s=mean(d1$s), d=d))  
+(n_star <- test_size_nn(N=100000, mu=0.68, sigma=0.029, s=0.68*(1-0.68)))
 ```
-
-
-## Sample size for hypothesis test with finite population correction
 ```{r}
-(n_fpc <- test_size_nht(s=mean(d1$s), d=d, N=1000000))  
-(eval_fpc <- test_eval_nn(c(n_fpc, n_fpc), N=1000000, 
-                          s=mean(d1$s), mu=10.36044, sigma=4.39646))
+test_eval_nn(n_star, N=100000, mu=0.68, sigma=0.029, s=0.68*(1-0.68))
 ```
 
+## Then we run the test somewhere out in the world and get some data...
+```{r, echo=FALSE}
+# Generate synthetic data for current A/B test
+set.seed(19348)
+group <- c(rep("A", 1272), rep("B", 1272)) 
+profit <- c(rnorm(1272, mean=0.51, sd=0.5*(1-0.5)), 
+            rnorm(1272, mean=0.50, sd=0.53*(1-0.53)))
+test_data <- data.frame(group, profit)
+rm(group, profit)
+```
+```{r}
+test_data %>% 
+  group_by(group) %>% summarize(mean=mean(profit), sd=sd(profit), n=n())
 
- 
+```
 
-## Test & Roll procedure
-1. Come up with priors distributions for each treatment 
-    - Use past data, if you've got it
-2. Use the priors to compute the optimal sample size
-3. Run the test
-4. Deploy the treatment with the higher posterior to the remainder of the population
-    - Priors are symmetric $\rightarrow$ pick the treatment with the higher average
+## How to decide what to roll
+To decide which treatment to delpoy, we compute the posteriors for each group.
+```{r}
+n_A <- sum(test_data$group=="A")
+n_B <- sum(test_data$group=="B")
+s <- sd(test_data$profit)
+post_mean_A <- mean(test_data[test_data$group=="A", "profit"])
+post_mean_B <- mean(test_data[test_data$group=="B", "profit"])
+post_sd_A <- (1/100^2 + n_A/s^2)^-(1/2)
+post_sd_B <- (1/100^2 + n_B/s^2)^-(1/2)
+```
+
+## How to decide what to roll
+```{r, echo=FALSE}
+plot(x=(400:600)/1000, y=dnorm((400:600)/1000, mean=post_mean_A, sd=post_sd_A), 
+     type="l", col="blue", xlab="mean profit", ylab="posterior density")
+lines(x=(400:600)/1000, y=dnorm((400:600)/1000, mean=post_mean_B, sd=post_sd_B), col="red")
+lines(x=(400:600)/1000, y=dnorm((400:600)/1000, mean=0, sd=100), col="gray")
+legend("topright", col=c("blue", "red", "gray"), legend=c("posterior for A", "posterior for B", "prior"), bty="n", lty=1)
+```
+
+## How to decide what to roll
+The posterior mean is our best guess at how well the treatment will perform. Our expected profit is maximized when we choose the treatment with the higher posterior mean (cf. [Berger](https://www.springer.com/gp/book/9780387960982)). 
+
+But, when the priors for A and B are the same, then the posterior is is just the average profit in the test. 
+```{r}
+post_mean_A <- mean(test_data[test_data$group=="A", "profit"])
+post_mean_B <- mean(test_data[test_data$group=="B", "profit"])
+```
+
+**So, you can skip the Bayesian analysis!** Just compute the average profit for each group and deploy the treatment with the higher profit. 
+
+That's why we call it Test & **Roll**.
+
+# Summary: How to Test and Roll
+
+## 1. Come up with priors  
+If you have data on past treatments that are similar to the ones you plan to test, fit a hierarchcial model. 
+```{r, eval=FALSE}
+# define a stan model (not shown)
+# estimate the model with your prior data
+m1 <- sampling(stan_model, data=expts, seed=20030601, iter=1000)
+```
+```{r, eval=TRUE}
+summary(m1, pars=c("sigma", "mu"))$summary[,c(1,3,5,8)]
+```
+The data doesn't have to be A/B tests. For example, you could use past response rates on regular email campaigns.
+
+## 2. Use priors to compute sample size
+```{r, eval=TRUE}
+(n_star <- test_size_nn(N=100000, mu=0.68, sigma=0.026, s=0.68*(1-0.68)))
+test_eval_nn(n_star, N=100000, mu=0.68, sigma=0.026, s=0.68*(1-0.68))
+```
+
+## 3. Run the test & collect data
+This can be done using any A/B testing tool that works with the medium you are testing.
+
+## 4. Deploy  treatment with higher average profit
+```{r, eval=TRUE}
+test_data %>% 
+  group_by(group) %>% summarize(mean=mean(profit), sd=sd(profit), n=n())
+```
+
+## That was just five lines of code
+```{r, eval=FALSE}
+m1 <- sampling(stan_model, data=expts, seed=20030601, iter=1000)
+summary(m1, pars=c("omega", "sigma", "mu"))$summary[,c(1,3,5,8)]
+(n_star <- test_size_nn(N=100000, mu=0.68, sigma=0.026, s=0.68*(1-0.68)))
+test_eval_nn(n_star, N=100000, mu=0.68, sigma=0.026, s=0.68*(1-0.68))
+test_data %>% 
+  group_by(group) %>% summarize(mean=mean(profit), sd=sd(profit), n=n())
+```
+
+# A few more things you should know how to do
+
+## You can have different priors for A and B
+```{r}
+mu <-  c(20, 30); sigma <-  c(10, 20); s <- c(100, 200)
+plot_prior_mean_resp_nn(mu=mu, sigma=sigma)
+```
+
+## And different priors lead to different sample sizes
+```{r}
+test_size_nn(N=100000, mu=mu, sigma=sigma, s=s)
+```
+
+## Why not Hypothesis Testing?
+What if recommended sample size is larger than available population?   
+
+Which treatment should be deployed if the difference is non-significant?   
+
+False positives do not reduce profit in this setting. Why control them?   
+
+Can't rationalize unequal test group sizes   
 
 ## Hypothesis Test versus Test & Roll
+
 ### Hypothesis tests are for science
-- Want to know which treatment is better with high confidence 
-- Don’t explicitly consider the cost of the experiment  
+- Want to know which treatment is better with high confidence  
+- Don’t explicitly consider the cost of the experiment   
+- Generally requires much larger sample sizes   
+
 ### Test & Roll is for marketing  
 - Want to select treatments that maximize profits  
-- Considers the cost of the test relative to the error rate 
+- Considers the cost of the test relative to the error rate  
+- Generally requires small sample sizes that are scaled  
+
+## Learning more
+If you don't like R code check out the [Test & Roll Shiny App](http://testandroll.com)
+
+If you want to dive into the details of Test & Roll, check out our paper [Feit and Berman (2019)](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3274875).
+
+There is complete [replication code for the paper](https://github.com/eleafeit/testandroll/tree/master/replication)
+
+Chris Said (Stitch Fix) wrote a [blog post outlining a similar approach framed as discounting](https://twitter.com/Chris_Said/status/1215733430085804032). 
+
+## Coming soon 
+R package to make the functions in `nn_functions.R` more accessible.  
+
+Improvements to the Shiny App  
+
+A new paper on latent stratification  
+
+## Thanks!  {.smaller}
+**Elea McDonnell Feit**  
+Associate Professor of Marketing  
+LeBow College of Business  
+Drexel University  
+@eleafeit  
+eleafeit.com  
+
+**Ron Berman**  
+Assistant Professor of Marketing  
+The Wharton School  
+University of Pennsylvania  
+@marketsensi  
+ron-berman.com  
+
+
+
 
