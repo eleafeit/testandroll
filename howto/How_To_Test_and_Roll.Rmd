@@ -42,9 +42,8 @@ We are marketing professors, after all!
 
 ## Workshop materials  
 [Slides](https://eleafeit.github.io/testandroll/howto/How_To_Test_and_Roll.html#1)  
-[R Markdown file that created slides](https://raw.githubusercontent.com/eleafeit/testandroll/master/howto/How_To_Test_and_Roll.Rmd)
 
-Those familiar with R Markdown can open the file in R Studio and run the code as we go along.   
+Those familiar with R Markdown can open the [R Markdown file that created the slides](https://raw.githubusercontent.com/eleafeit/testandroll/master/howto/How_To_Test_and_Roll.Rmd) in R Studio and run the code as we go along.   
 - Requires `rstan` and `dplyr` packages  
 - Requires [nn_functions.R](https://raw.githubusercontent.com/eleafeit/testandroll/master/nn_functions.R) with some additional functions I wrote.
 
@@ -57,7 +56,7 @@ I will assume you know what a probability distribution like the normal distribut
 
 I expect you are comfortable reading R. I will use mathematical calculations, for loops, and plotting, *but ask questions!
 
-You do not need to know how plan and analyze an A/B test using hypothesis testing, but see [previous R Ladies Philly workshop on A/B testing](https://www.youtube.com/watch?v=QXpYtM-Zlxg&t=4s).
+You do not need to know how plan and analyze an A/B test using hypothesis testing, but see [previous R Ladies Philly workshop on A/B testing](https://www.youtube.com/watch?v=QXpYtM-Zlxg&t=8s).
 
 
 # How to analyze an A/B test using Bayesian inference
@@ -304,7 +303,7 @@ text(n_nht, 0.3, expression(n[HT]), col="gray", pos=4)
 ## Profit-maximizing sample size
 The `test_size_nn()` function is making the optimal trade-off between: 
 
-- the opportunity cost of the test (You are send the wrong treatment to half your customers!)  
+- the opportunity cost of the test (You are sending the wrong treatment to half your customers!)  
 
 and 
 
@@ -351,7 +350,7 @@ plot(x=mus, y=test_sizes, type="l", col="orange",
 ```
 
 ## What is `mu`?
-``mu` doesn't effect the test size (when `mu` is the same for both A and B)
+`mu` doesn't effect the test size (when `mu` is the same for both A and B)
 ```{r, echo=FALSE}
 plot(x=mus, y=test_sizes, type="l", col="orange",
      xlab="expected average profit per customer (mu)", ylab="profit-maximizing sample size")
@@ -372,7 +371,7 @@ plot(x=ss, y=test_sizes, type="l", col="orange",
      xlab="noise in profit per customer (s)", ylab="profit-maximizing sample size")
 ```
 
-## What is `s`?
+## What is `s`? {.smaller}
 Bigger `s` $\rightarrow$ harder to see what is going on $\rightarrow$ bigger test 
 ```{r, echo=FALSE}
 plot(x=ss, y=test_sizes, type="l", col="orange",
@@ -535,7 +534,7 @@ legend("topright", col=c("blue", "red", "gray"), legend=c("posterior for A", "po
 ## How to decide what to roll
 The posterior mean is our best guess at how well the treatment will perform. Our expected profit is maximized when we choose the treatment with the higher posterior mean (cf. [Berger](https://www.springer.com/gp/book/9780387960982)). 
 
-But, when the priors for A and B are the same, then the posterior is is just the average profit in the test. 
+But, when the priors for A and B are the same, then the posterior is just the average profit in the test. 
 ```{r}
 post_mean_A <- mean(test_data[test_data$group=="A", "profit"])
 post_mean_B <- mean(test_data[test_data$group=="B", "profit"])
