@@ -24,7 +24,7 @@ If you want follow along, you can view the [slides](https://eleafeit.github.io/t
 
 If you want to run the code as we go through the workshop, You will need to have R, R Studio and the `rstan` package installed. All the code is in the [R Markdown Code for the slides](https://raw.githubusercontent.com/eleafeit/testandroll/master/howto/How_To_Test_and_Roll.Rmd) and you will also need the file [`nn_functions.R`](https://raw.githubusercontent.com/eleafeit/testandroll/master/nn_functions.R).
 
-If you use git, you can also clone the entire workshop repository at (https://github.com/eleafeit/testandroll). The `howto` folder contains the R Markdown files for hte workshop. (There is other good stuff in the repo, including a copy of the paper and R scripts for replicating the analysis in the paper.) 
+If you use git, you can also clone the entire workshop repository at (https://github.com/eleafeit/testandroll). The `howto` folder contains the R Markdown files for the workshop. (There is other good stuff in the repo, including a copy of the paper and R scripts for replicating the analysis in the paper.) 
 
 ## Expectations
 - We will assume you have a general idea of what a probability distribution (like the normal distribution) is. 
