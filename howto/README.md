@@ -22,11 +22,11 @@ Marketers often use A/B testing as a tool to compare marketing treatments in a t
 ## Materials
 If you want follow along, you can view the [slides](https://eleafeit.github.io/testandroll/howto/How_To_Test_and_Roll.html#1) in your browser. 
 
-If you want to run the code as we go through the workshop, You will need to have R, R Studio and the `rstan` package installed. All the code is in the [R Markdown Code for the slides](https://github.com/eleafeit/testandroll/blob/master/howto/How_To_Test_and_Roll.Rmd) and you  will also need the file [`nn_functions.R`](https://github.com/eleafeit/testandroll/blob/master/nn_functions.R). 
+If you want to run the code as we go through the workshop, You will need to have R, R Studio and the `rstan` package installed. All the code is in the [R Markdown Code for the slides](https://raw.githubusercontent.com/eleafeit/testandroll/master/howto/How_To_Test_and_Roll.Rmd) and you will also need the file [`nn_functions.R`](https://raw.githubusercontent.com/eleafeit/testandroll/master/nn_functions.R).
 
-If you use git, you can also clone the entire workshop repository at (github.com/eleafeit/testandroll). The `howto` folder contains the R Markdown files for hte workshop. (There is other [good stuff in the repo](https://eleafeit.github.io/testandroll/), including a copy of the paper and R scripts for replicating the analysis in the paper.) 
+If you use git, you can also clone the entire workshop repository at (https://github.com/eleafeit/testandroll). The `howto` folder contains the R Markdown files for hte workshop. (There is other good stuff in the repo, including a copy of the paper and R scripts for replicating the analysis in the paper.) 
 
 ## Expectations
 - We will assume you have a general idea of what a probability distribution (like the normal distribution) is. 
 - We expect you are comfortable reading R. We will use R for mathematical calculations, for loops, and plotting. 
-- You do not need to know how to plan and analyze an A/B test using hypothesis testing, but see Elea's tutorial on "Advanced A/B Testing() which was [recorded](https://www.youtube.com/watch?v=QXpYtM-Zlxg&t=4s) in a previous R Ladies Philly workshop, if you are interested.
+- You do not need to know how to plan and analyze an A/B test using hypothesis testing, but see Elea's tutorial on "Advanced A/B Testing(https://eleafeit.github.io/ab_test/) which was [recorded](https://www.youtube.com/watch?v=QXpYtM-Zlxg&t=4s) in a previous R Ladies Philly workshop, if you are interested.

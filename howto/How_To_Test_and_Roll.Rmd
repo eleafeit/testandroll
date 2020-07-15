@@ -41,14 +41,14 @@ We are marketing professors, after all!
 
 
 ## Workshop materials  
-[Slides]()  
-[R Markdown file that created slides]()
+[Slides](https://eleafeit.github.io/testandroll/howto/How_To_Test_and_Roll.html#1)  
+[R Markdown file that created slides](https://raw.githubusercontent.com/eleafeit/testandroll/master/howto/How_To_Test_and_Roll.Rmd)
 
 Those familiar with R Markdown can open the file in R Studio and run the code as we go along.   
 - Requires `rstan` and `dplyr` packages  
-- Requires [nn_functions.R]() with some additional functions I wrote  
+- Requires [nn_functions.R](https://raw.githubusercontent.com/eleafeit/testandroll/master/nn_functions.R) with some additional functions I wrote.
 
-Those unfamiliar with R markdown may prefer to just follow the slides.  
+Those unfamiliar with R Markdown (or just tired) should follow the slides without trying to run the code.  
 
 ## What I expect participants already know
 I just told you about A/B tests, *but ask questions!*
