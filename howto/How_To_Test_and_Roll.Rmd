@@ -20,9 +20,10 @@ source("nn_functions.R")
 
 ## Thanks to Drexel & Wharton
 
-[Drexel Business Analytics Meetup](https://www.meetup.com/analyticslebow/)  
-[Drexel MS Business Analtyics](https://www.lebow.drexel.edu/land/masters/business-analytics)  
-[Drexel MS Marketing](https://www.lebow.drexel.edu/land/masters/marketing)  
+[Drexel MS Business Analtyics (Fall applications due 9/15)](https://www.lebow.drexel.edu/land/masters/business-analytics)  
+[Drexel MS Marketing (Fall applications due 9/15)](https://www.lebow.drexel.edu/land/masters/marketing)  
+[Drexel Business Analytics Meetup (open to all!)](https://www.meetup.com/analyticslebow/)  
+[Drexel Solutions Institute](https://drexel.edu/solutions-institute/)
 
 [Wharton Online Certificate in Digital Marketing](https://online.wharton.upenn.edu/programs/?vm_vt=1#digital-marketing)  
 [Wharton Exec Ed Course in Customer Analtyics](https://executiveeducation.wharton.upenn.edu/for-individuals/all-programs/customer-analytics-for-growth-using-machine-learning-ai-and-big-data/)  
